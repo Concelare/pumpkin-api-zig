@@ -569,6 +569,7 @@ pub const CreatureSpawnEventData = struct {
     position: Position,
     target_world: World,
     spawn_reason: []const u8,
+    player: ?Player,
     cancelled: bool,
 };
 
