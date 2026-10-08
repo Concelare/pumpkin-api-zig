@@ -44,6 +44,9 @@ fn untrack(comptime T: type, handle: T) void {
         const item = tracked.items[i];
         if (item.handle == @intFromEnum(handle) and item.drop == T.resource_drop) {
             _ = tracked.orderedRemove(i);
+            for (frames.items) |*start| {
+                if (start.* > i) start.* -= 1;
+            }
             return;
         }
     }
@@ -95,17 +98,31 @@ pub fn stats() Stats {
     };
 }
 
+/// Where each running export starts in `tracked`. Exports nest when a host
+/// call runs one of ours before returning.
+var frames: std.ArrayList(usize) = .empty;
+
+pub fn beginCall() void {
+    frames.append(backing, tracked.items.len) catch @panic("OOM");
+}
+
 /// Drops the handles nobody kept. This calls into the host, which is not
 /// allowed from a post-return function, so it can't be left to `endCall`.
 pub fn releaseHandles() void {
-    while (tracked.pop()) |item| item.drop(@bitCast(item.handle));
+    const start = if (frames.items.len > 0) frames.items[frames.items.len - 1] else 0;
+    while (tracked.items.len > start) {
+        const item = tracked.pop().?;
+        item.drop(@bitCast(item.handle));
+    }
 }
 
-/// Resets the arena. With an indirect result the host still reads from it
-/// after the export returns, those exports call this from `cabi_post_*`.
+/// Resets the arena once the outermost export is done. With an indirect result
+/// the host still reads from it after the export returns, those exports call
+/// this from `cabi_post_*`.
 pub fn endCall() void {
     releaseHandles();
-    _ = call_arena.reset(.retain_capacity);
+    _ = frames.pop();
+    if (frames.items.len == 0) _ = call_arena.reset(.retain_capacity);
 }
 
 fn cabiRealloc(old: ?[*]u8, old_len: usize, alignment: usize, new_len: usize) callconv(.c) ?[*]u8 {
@@ -715,4 +732,39 @@ test "handle tracking" {
     lowerReturn(void, {});
     try std.testing.expectEqualSlices(u32, &.{ 4, 1 }, Res.dropped[0..Res.count]);
     try std.testing.expectEqual(0, tracked.items.len);
+}
+
+test "nested exports" {
+    const Res = enum(u32) {
+        _,
+
+        var dropped: [8]u32 = undefined;
+        var count: usize = 0;
+
+        pub const resource_drop = &record;
+
+        fn record(handle: i32) callconv(.c) void {
+            dropped[count] = @intCast(handle);
+            count += 1;
+        }
+    };
+
+    beginCall();
+    const outer = liftFlat(Res, &.{1});
+    const text = try arena().dupe(u8, "still here");
+
+    beginCall();
+    _ = liftFlat(Res, &.{2});
+    keep(Res, outer);
+    _ = liftFlat(Res, &.{3});
+    lowerReturn(void, {});
+    endCall();
+    try std.testing.expectEqualSlices(u32, &.{ 3, 2 }, Res.dropped[0..Res.count]);
+    try std.testing.expectEqualStrings("still here", text);
+
+    _ = liftFlat(Res, &.{4});
+    lowerReturn(void, {});
+    endCall();
+    try std.testing.expectEqualSlices(u32, &.{ 3, 2, 4 }, Res.dropped[0..Res.count]);
+    try std.testing.expectEqual(0, frames.items.len);
 }

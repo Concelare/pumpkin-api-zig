@@ -16,6 +16,7 @@ const metadata = @import("metadata.zig");
 pub fn initPlugin(comptime impl: fn () void) void {
     const glue = struct {
         fn call() callconv(.c) void {
+            abi.beginCall();
             const args = abi.liftArgs(std.meta.ArgsTuple(@TypeOf(impl)), .{});
             defer abi.endCall();
             return abi.lowerReturn(void, @call(.auto, impl, args));
@@ -29,6 +30,7 @@ pub fn initPlugin(comptime impl: fn () void) void {
 pub fn onLoad(comptime impl: fn (context.Context) abi.Result(void, []const u8)) void {
     const glue = struct {
         fn call(p0: i32) callconv(.c) i32 {
+            abi.beginCall();
             const args = abi.liftArgs(std.meta.ArgsTuple(@TypeOf(impl)), .{p0});
             return abi.lowerReturn(abi.Result(void, []const u8), @call(.auto, impl, args));
         }
@@ -46,6 +48,7 @@ pub fn onLoad(comptime impl: fn (context.Context) abi.Result(void, []const u8)) 
 pub fn onUnload(comptime impl: fn (context.Context) abi.Result(void, []const u8)) void {
     const glue = struct {
         fn call(p0: i32) callconv(.c) i32 {
+            abi.beginCall();
             const args = abi.liftArgs(std.meta.ArgsTuple(@TypeOf(impl)), .{p0});
             return abi.lowerReturn(abi.Result(void, []const u8), @call(.auto, impl, args));
         }
@@ -62,6 +65,7 @@ pub fn onUnload(comptime impl: fn (context.Context) abi.Result(void, []const u8)
 pub fn handleEvent(comptime impl: fn (u32, server.Server, event.Event) event.Event) void {
     const glue = struct {
         fn call(p0: i32) callconv(.c) i32 {
+            abi.beginCall();
             const args = abi.liftArgs(std.meta.ArgsTuple(@TypeOf(impl)), .{p0});
             return abi.lowerReturn(event.Event, @call(.auto, impl, args));
         }
@@ -78,6 +82,7 @@ pub fn handleEvent(comptime impl: fn (u32, server.Server, event.Event) event.Eve
 pub fn handleCommand(comptime impl: fn (u32, command.CommandSender, server.Server, command.ConsumedArgs) abi.Result(i32, command.CommandError)) void {
     const glue = struct {
         fn call(p0: i32, p1: i32, p2: i32, p3: i32) callconv(.c) i32 {
+            abi.beginCall();
             const args = abi.liftArgs(std.meta.ArgsTuple(@TypeOf(impl)), .{ p0, p1, p2, p3 });
             return abi.lowerReturn(abi.Result(i32, command.CommandError), @call(.auto, impl, args));
         }
@@ -94,6 +99,7 @@ pub fn handleCommand(comptime impl: fn (u32, command.CommandSender, server.Serve
 pub fn handleCommandSuggestion(comptime impl: fn (u32, command.CommandSender, server.Server, command.SuggestionRequest) command.CommandSuggestions) void {
     const glue = struct {
         fn call(p0: i32, p1: i32, p2: i32, p3: i32, p4: i32, p5: i32, p6: i32, p7: i32, p8: i32) callconv(.c) i32 {
+            abi.beginCall();
             const args = abi.liftArgs(std.meta.ArgsTuple(@TypeOf(impl)), .{ p0, p1, p2, p3, p4, p5, p6, p7, p8 });
             return abi.lowerReturn(command.CommandSuggestions, @call(.auto, impl, args));
         }
@@ -110,6 +116,7 @@ pub fn handleCommandSuggestion(comptime impl: fn (u32, command.CommandSender, se
 pub fn handleTask(comptime impl: fn (u32, server.Server) void) void {
     const glue = struct {
         fn call(p0: i32, p1: i32) callconv(.c) void {
+            abi.beginCall();
             const args = abi.liftArgs(std.meta.ArgsTuple(@TypeOf(impl)), .{ p0, p1 });
             defer abi.endCall();
             return abi.lowerReturn(void, @call(.auto, impl, args));
@@ -122,6 +129,7 @@ pub fn handleTask(comptime impl: fn (u32, server.Server) void) void {
 pub fn handleIpcMessage(comptime impl: fn (ipc.PluginId, ipc.IpcMessage) abi.Result(ipc.IpcMessage, []const u8)) void {
     const glue = struct {
         fn call(p0: i32, p1: i32, p2: i32, p3: i32) callconv(.c) i32 {
+            abi.beginCall();
             const args = abi.liftArgs(std.meta.ArgsTuple(@TypeOf(impl)), .{ p0, p1, p2, p3 });
             return abi.lowerReturn(abi.Result(ipc.IpcMessage, []const u8), @call(.auto, impl, args));
         }
@@ -137,6 +145,7 @@ pub fn handleIpcMessage(comptime impl: fn (ipc.PluginId, ipc.IpcMessage) abi.Res
 pub fn handleAiGoalCanStart(comptime impl: fn (u32, server.Server, world.Entity) bool) void {
     const glue = struct {
         fn call(p0: i32, p1: i32, p2: i32) callconv(.c) i32 {
+            abi.beginCall();
             const args = abi.liftArgs(std.meta.ArgsTuple(@TypeOf(impl)), .{ p0, p1, p2 });
             defer abi.endCall();
             return abi.lowerReturn(bool, @call(.auto, impl, args));
@@ -148,6 +157,7 @@ pub fn handleAiGoalCanStart(comptime impl: fn (u32, server.Server, world.Entity)
 pub fn handleAiGoalShouldContinue(comptime impl: fn (u32, server.Server, world.Entity) bool) void {
     const glue = struct {
         fn call(p0: i32, p1: i32, p2: i32) callconv(.c) i32 {
+            abi.beginCall();
             const args = abi.liftArgs(std.meta.ArgsTuple(@TypeOf(impl)), .{ p0, p1, p2 });
             defer abi.endCall();
             return abi.lowerReturn(bool, @call(.auto, impl, args));
@@ -159,6 +169,7 @@ pub fn handleAiGoalShouldContinue(comptime impl: fn (u32, server.Server, world.E
 pub fn handleAiGoalStart(comptime impl: fn (u32, server.Server, world.Entity) void) void {
     const glue = struct {
         fn call(p0: i32, p1: i32, p2: i32) callconv(.c) void {
+            abi.beginCall();
             const args = abi.liftArgs(std.meta.ArgsTuple(@TypeOf(impl)), .{ p0, p1, p2 });
             defer abi.endCall();
             return abi.lowerReturn(void, @call(.auto, impl, args));
@@ -170,6 +181,7 @@ pub fn handleAiGoalStart(comptime impl: fn (u32, server.Server, world.Entity) vo
 pub fn handleAiGoalTick(comptime impl: fn (u32, server.Server, world.Entity) void) void {
     const glue = struct {
         fn call(p0: i32, p1: i32, p2: i32) callconv(.c) void {
+            abi.beginCall();
             const args = abi.liftArgs(std.meta.ArgsTuple(@TypeOf(impl)), .{ p0, p1, p2 });
             defer abi.endCall();
             return abi.lowerReturn(void, @call(.auto, impl, args));
@@ -181,6 +193,7 @@ pub fn handleAiGoalTick(comptime impl: fn (u32, server.Server, world.Entity) voi
 pub fn handleAiGoalStop(comptime impl: fn (u32, server.Server, world.Entity) void) void {
     const glue = struct {
         fn call(p0: i32, p1: i32, p2: i32) callconv(.c) void {
+            abi.beginCall();
             const args = abi.liftArgs(std.meta.ArgsTuple(@TypeOf(impl)), .{ p0, p1, p2 });
             defer abi.endCall();
             return abi.lowerReturn(void, @call(.auto, impl, args));
@@ -193,6 +206,7 @@ pub fn handleAiGoalStop(comptime impl: fn (u32, server.Server, world.Entity) voi
 pub fn handleGeneratePhase(comptime impl: fn (u32, world.GenerationPhase, world.ChunkBuffer) void) void {
     const glue = struct {
         fn call(p0: i32, p1: i32, p2: i32) callconv(.c) void {
+            abi.beginCall();
             const args = abi.liftArgs(std.meta.ArgsTuple(@TypeOf(impl)), .{ p0, p1, p2 });
             defer abi.endCall();
             return abi.lowerReturn(void, @call(.auto, impl, args));
@@ -204,6 +218,7 @@ pub fn handleGeneratePhase(comptime impl: fn (u32, world.GenerationPhase, world.
 pub fn getMetadata(comptime impl: fn () metadata.PluginMetadata) void {
     const glue = struct {
         fn call() callconv(.c) i32 {
+            abi.beginCall();
             const args = abi.liftArgs(std.meta.ArgsTuple(@TypeOf(impl)), .{});
             return abi.lowerReturn(metadata.PluginMetadata, @call(.auto, impl, args));
         }

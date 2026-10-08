@@ -9,6 +9,7 @@ const guest = @import("guest.zig");
 pub fn start(comptime impl: fn (host.Canvas) abi.Result(void, []const u8)) void {
     const glue = struct {
         fn call(p0: i32) callconv(.c) i32 {
+            abi.beginCall();
             const args = abi.liftArgs(std.meta.ArgsTuple(@TypeOf(impl)), .{p0});
             return abi.lowerReturn(abi.Result(void, []const u8), @call(.auto, impl, args));
         }
@@ -24,6 +25,7 @@ pub fn start(comptime impl: fn (host.Canvas) abi.Result(void, []const u8)) void 
 pub fn measure(comptime impl: fn (types.Shape, types.Pair) f32) void {
     const glue = struct {
         fn call(p0: i32, p1: i32, p2: i32, p3: i32, p4: f64) callconv(.c) f32 {
+            abi.beginCall();
             const args = abi.liftArgs(std.meta.ArgsTuple(@TypeOf(impl)), .{ p0, p1, p2, p3, p4 });
             defer abi.endCall();
             return abi.lowerReturn(f32, @call(.auto, impl, args));
@@ -35,6 +37,7 @@ pub fn measure(comptime impl: fn (types.Shape, types.Pair) f32) void {
 pub fn stop(comptime impl: fn () void) void {
     const glue = struct {
         fn call() callconv(.c) void {
+            abi.beginCall();
             const args = abi.liftArgs(std.meta.ArgsTuple(@TypeOf(impl)), .{});
             defer abi.endCall();
             return abi.lowerReturn(void, @call(.auto, impl, args));
@@ -46,6 +49,7 @@ pub fn stop(comptime impl: fn () void) void {
 pub fn describe(comptime impl: fn () guest.Point) void {
     const glue = struct {
         fn call() callconv(.c) i32 {
+            abi.beginCall();
             const args = abi.liftArgs(std.meta.ArgsTuple(@TypeOf(impl)), .{});
             return abi.lowerReturn(guest.Point, @call(.auto, impl, args));
         }

@@ -706,6 +706,7 @@ const Gen = struct {
         }
         try w.print(") callconv(.c) {s} {{\n", .{if (sig.result) |r| @tagName(r) else "void"});
 
+        try w.writeAll("            abi.beginCall();\n");
         try w.writeAll("            const args = abi.liftArgs(std.meta.ArgsTuple(@TypeOf(impl)), ");
         try w.writeAll(if (sig.params.len > 1) ".{ " else ".{");
         for (sig.params, 0..) |_, i| {

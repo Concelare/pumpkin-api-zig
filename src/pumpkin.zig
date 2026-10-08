@@ -238,6 +238,7 @@ pub fn register(comptime Plugin: type) void {
             const Args = struct { u32, Server, Event };
             comptime std.debug.assert(abi.passedInMemory(Args));
 
+            abi.beginCall();
             const args: [*]const u8 = @ptrFromInt(@as(u32, @bitCast(raw_args)));
             const id = abi.load(u32, args + abi.offsetOf(Args, 0));
             const srv = abi.load(Server, args + abi.offsetOf(Args, 1));
