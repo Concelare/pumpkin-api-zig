@@ -2,6 +2,7 @@ const std = @import("std");
 const pumpkin = @import("pumpkin");
 const cmd = pumpkin.cmd;
 const msg = pumpkin.msg;
+const menu = pumpkin.menu;
 
 pub const std_options: std.Options = .{ .logFn = pumpkin.logFn };
 
@@ -20,8 +21,8 @@ const Example = struct {
         .player_chat_event = .{ onChat, pumpkin.EventOptions{ .priority = .high } },
     };
 
-    // /greet and /greet <targets>
-    pub const commands: []const cmd.Spec = &.{.{
+    // /greet and /greet <targets>, /colors
+    pub const commands: []const cmd.Spec = &.{ .{
         .names = &.{ "greet", "hi" },
         .description = "Says hello.",
         .permission = "pumpkin-plugin-example:command.greet",
@@ -29,9 +30,15 @@ const Example = struct {
         .then = &.{
             .argument("targets", .players, .{ .run = greetTargets }),
         },
-    }};
+    }, .{
+        .names = &.{"colors"},
+        .description = "Opens a menu to pick a chat color.",
+        .permission = "pumpkin-plugin-example:command.colors",
+        .run = openColors,
+    } };
 
-    pub fn onLoad(_: pumpkin.Context) !void {
+    pub fn onLoad(ctx: pumpkin.Context) !void {
+        menu.listen(ctx);
         log.info("Hello from Zig!", .{});
     }
 
@@ -62,6 +69,35 @@ const Example = struct {
         }
         sender.sendMessage(msg.fmt(null, "Greeted {d} player(s).", .{targets.len}));
         return cmd.ok(@intCast(targets.len));
+    }
+
+    const colors = [_]struct { wool: []const u8, color: msg.Color }{
+        .{ .wool = "minecraft:red_wool", .color = .red },
+        .{ .wool = "minecraft:lime_wool", .color = .green },
+        .{ .wool = "minecraft:light_blue_wool", .color = .aqua },
+        .{ .wool = "minecraft:yellow_wool", .color = .yellow },
+    };
+
+    fn openColors(sender: cmd.Sender, _: pumpkin.Server, _: cmd.Args) cmd.Result {
+        const player = sender.asPlayer() orelse return cmd.fail("only players can pick a color");
+        var buttons: [colors.len]menu.Button = undefined;
+        for (&buttons, colors, 0..) |*button, c, i| button.* = .{
+            .slot = @intCast(10 + 2 * i),
+            .icon = .{ .id = c.wool, .name = &.{.{ .text = @tagName(c.color), .color = c.color }} },
+            .on_click = pickColor,
+            .data = i,
+        };
+        menu.open(player, .{
+            .title = &.{.{ .text = "Pick a color" }},
+            .buttons = &buttons,
+            .fill = .{ .id = "minecraft:gray_stained_glass_pane", .name = &.{} },
+        });
+        return cmd.ok(1);
+    }
+
+    fn pickColor(click: menu.Click) void {
+        const c = colors[click.data];
+        click.player.sendSystemMessage(msg.fmt(c.color, "You picked {s}.", .{@tagName(c.color)}), false);
     }
 };
 

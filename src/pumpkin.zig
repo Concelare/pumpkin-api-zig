@@ -3,7 +3,7 @@
 //! The namespaces below mirror the WIT interfaces one to one and are generated.
 //! What's written by hand here is the glue a plugin needs to get going:
 //! `register`, typed event and task handlers, `cmd` for commands, `msg` for
-//! text components and `std.log` support.
+//! text components, `menu` for inventory menus and `std.log` support.
 //!
 //! Whatever the API hands out is only good until the current callback returns:
 //! strings, slices and records live in a per-call arena and handles are
@@ -16,6 +16,7 @@ const std = @import("std");
 pub const abi = @import("abi.zig");
 pub const cmd = @import("cmd.zig");
 pub const msg = @import("msg.zig");
+pub const menu = @import("menu.zig");
 const wit = @import("wit.zig");
 
 pub const advancement = wit.advancement;

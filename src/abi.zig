@@ -20,6 +20,9 @@ pub fn Result(comptime T: type, comptime E: type) type {
 const is_wasm = builtin.cpu.arch == .wasm32;
 const backing = if (is_wasm) std.heap.wasm_allocator else std.heap.page_allocator;
 
+/// For memory that outlives the current call.
+pub const heap = backing;
+
 var call_arena: std.heap.ArenaAllocator = .init(backing);
 
 /// Everything the host hands us lives here and is gone once the current export returns.
