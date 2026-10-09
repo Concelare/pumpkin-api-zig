@@ -268,6 +268,8 @@ pub const BlockBreakEventData = struct {
 pub const BlockBurnEventData = struct {
     igniting_block: []const u8,
     block: []const u8,
+    block_pos: BlockPos,
+    target_world: World,
     cancelled: bool,
 };
 
