@@ -21,7 +21,7 @@ const Example = struct {
         .player_chat_event = .{ onChat, pumpkin.EventOptions{ .priority = .high } },
     };
 
-    // /greet and /greet <targets>, /colors
+    // /greet and /greet <targets>, /colors, /heal <target> [amount]
     pub const commands: []const cmd.Spec = &.{ .{
         .names = &.{ "greet", "hi" },
         .description = "Says hello.",
@@ -35,6 +35,17 @@ const Example = struct {
         .description = "Opens a menu to pick a chat color.",
         .permission = "pumpkin-plugin-example:command.colors",
         .run = openColors,
+    }, .{
+        .names = &.{"heal"},
+        .description = "Heals a player, fully or by the given amount.",
+        .permission = "pumpkin-plugin-example:command.heal",
+        .default = .{ .op = .two },
+        .then = &.{
+            .argument("target", .players, .{
+                .run = cmd.typed(heal),
+                .then = &.{.argument("amount", .{ .float = .{ 0.5, null } }, .{ .run = cmd.typed(heal) })},
+            }),
+        },
     } };
 
     pub fn onLoad(ctx: pumpkin.Context) !void {
@@ -59,6 +70,13 @@ const Example = struct {
             .{ .text = "Hello from Zig! ", .color = .gold },
             .{ .text = "[again]", .color = .gray, .click = .{ .run_command = "/greet" }, .hover = "Runs /greet" },
         }));
+        return cmd.ok(1);
+    }
+
+    fn heal(sender: cmd.Sender, _: pumpkin.Server, args: struct { target: pumpkin.Player, amount: ?f32 }) cmd.Result {
+        const target = args.target;
+        if (args.amount) |amount| target.heal(amount) else target.setHealth(target.getMaxHealth());
+        sender.sendMessage(msg.fmt(.green, "{s} is at {d:.1} health.", .{ target.getName(), target.getHealth() }));
         return cmd.ok(1);
     }
 
