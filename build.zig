@@ -6,6 +6,8 @@ pub const PluginOptions = struct {
     optimize: std.builtin.OptimizeMode = .ReleaseSmall,
 };
 
+const wasi: std.Target.Query = .{ .cpu_arch = .wasm32, .os_tag = .wasi };
+
 /// Builds a plugin and installs `<name>.wasm`, ready to be dropped into the
 /// server's `plugins` folder. Needs `wasm-tools` in PATH.
 ///
@@ -16,7 +18,7 @@ pub fn addPlugin(b: *std.Build, api: *std.Build.Dependency, options: PluginOptio
 }
 
 fn addPluginFrom(b: *std.Build, api: *std.Build, options: PluginOptions) *std.Build.Step.InstallFile {
-    const target = b.resolveTargetQuery(.{ .cpu_arch = .wasm32, .os_tag = .freestanding });
+    const target = b.resolveTargetQuery(wasi);
 
     const pumpkin = api.createModule(.{
         .root_source_file = api.path("src/pumpkin.zig"),
@@ -35,6 +37,7 @@ fn addPluginFrom(b: *std.Build, api: *std.Build, options: PluginOptions) *std.Bu
     });
     core.entry = .disabled;
     core.rdynamic = true;
+    core.wasi_exec_model = .reactor;
 
     // Zig has no component model target, so the core module gets its WIT
     // attached and is wrapped into a component afterwards.
@@ -44,7 +47,9 @@ fn addPluginFrom(b: *std.Build, api: *std.Build, options: PluginOptions) *std.Bu
     embed.addArg("-o");
     const embedded = embed.addOutputFileArg("embedded.wasm");
 
-    const new = b.addSystemCommand(&.{ "wasm-tools", "component", "new" });
+    // Zig emits WASI preview 1, the server provides preview 2.
+    const new = b.addSystemCommand(&.{ "wasm-tools", "component", "new", "--adapt" });
+    new.addPrefixedFileArg("wasi_snapshot_preview1=", api.path("adapter/wasi_snapshot_preview1.reactor.wasm"));
     new.addFileArg(embedded);
     new.addArg("-o");
     const component = new.addOutputFileArg(b.fmt("{s}.wasm", .{options.name}));
@@ -75,7 +80,7 @@ pub fn build(b: *std.Build) void {
         .name = "check",
         .root_module = b.createModule(.{
             .root_source_file = b.path("src/check.zig"),
-            .target = b.resolveTargetQuery(.{ .cpu_arch = .wasm32, .os_tag = .freestanding }),
+            .target = b.resolveTargetQuery(wasi),
             .optimize = .ReleaseSmall,
         }),
     });

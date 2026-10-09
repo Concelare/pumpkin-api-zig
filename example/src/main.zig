@@ -14,6 +14,7 @@ const Example = struct {
         .version = "0.1.0",
         .authors = &.{"You"},
         .description = "An example plugin in Zig.",
+        .permissions = &.{ "fs.read.data", "fs.write.data" },
     };
 
     pub const events = .{
@@ -48,9 +49,26 @@ const Example = struct {
         },
     } };
 
+    var welcome: []const u8 = default_welcome;
+    const default_welcome = "Welcome! Edit welcome.txt in the plugin's data folder to change this.";
+
     pub fn onLoad(ctx: pumpkin.Context) !void {
         menu.listen(ctx);
+        welcome = try loadWelcome();
         log.info("Hello from Zig!", .{});
+    }
+
+    fn loadWelcome() ![]const u8 {
+        const io = pumpkin.io();
+        const dir = std.Io.Dir.cwd();
+        const text = dir.readFileAlloc(io, "welcome.txt", pumpkin.abi.heap, .limited(4096)) catch |err| switch (err) {
+            error.FileNotFound => {
+                try dir.writeFile(io, .{ .sub_path = "welcome.txt", .data = default_welcome ++ "\n" });
+                return default_welcome;
+            },
+            else => return err,
+        };
+        return std.mem.trim(u8, text, " \r\n");
     }
 
     fn onJoin(_: pumpkin.Server, ev: *pumpkin.EventData(.player_join_event)) void {
@@ -59,6 +77,7 @@ const Example = struct {
             .{ .text = "+ ", .color = .green, .bold = true },
             .{ .text = ev.player.getName(), .color = .yellow },
         });
+        ev.player.sendSystemMessage(msg.plain(welcome), false);
     }
 
     fn onChat(_: pumpkin.Server, ev: *pumpkin.EventData(.player_chat_event)) void {

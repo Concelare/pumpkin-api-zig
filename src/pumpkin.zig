@@ -87,6 +87,13 @@ pub const Metadata = struct {
     permissions: []const []const u8 = &.{},
 };
 
+var threaded: std.Io.Threaded = .init_single_threaded;
+
+/// The `std.Io` to pass to file calls.
+pub fn io() std.Io {
+    return threaded.io();
+}
+
 /// Plug this into `std_options.logFn` to route `std.log` to the server console.
 pub fn logFn(
     comptime level: std.log.Level,
