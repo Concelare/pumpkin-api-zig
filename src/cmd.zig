@@ -17,6 +17,7 @@ const wit = @import("wit.zig");
 const command = wit.command;
 const Context = wit.context.Context;
 const Server = wit.server.Server;
+const Player = wit.player.Player;
 const TextComponent = wit.text.TextComponent;
 
 pub const Sender = command.CommandSender;
@@ -133,6 +134,85 @@ pub fn float(args: Args, name: []const u8) ?f64 {
     };
 }
 
+/// Wraps `fn (Sender, Server, T) Result`, filling `T` with the arguments of the same name.
+pub fn typed(comptime handler: anytype) *const Handler {
+    const params = @typeInfo(@TypeOf(handler)).@"fn".params;
+    if (params.len != 3) @compileError("cmd.typed wants a fn (Sender, Server, T) Result");
+    const T = params[2].type.?;
+    return &struct {
+        fn run(sender: Sender, srv: Server, args: Args) Result {
+            var out: T = undefined;
+            inline for (@typeInfo(T).@"struct".fields) |field| {
+                const Value = switch (@typeInfo(field.type)) {
+                    .optional => |o| o.child,
+                    else => field.type,
+                };
+                @field(out, field.name) = switch (read(Value, args.getValue(field.name))) {
+                    .ok => |value| value,
+                    .missing => if (field.defaultValue()) |default|
+                        default
+                    else if (Value != field.type)
+                        null
+                    else
+                        return failFmt("missing argument '{s}'", .{field.name}),
+                    .invalid => |why| return failFmt("'{s}' {s}", .{ field.name, why }),
+                };
+            }
+            return handler(sender, srv, out);
+        }
+    }.run;
+}
+
+fn failFmt(comptime format: []const u8, args: anytype) Result {
+    return fail(std.fmt.allocPrint(abi.arena(), format, args) catch @panic("OOM"));
+}
+
+fn Read(comptime T: type) type {
+    return union(enum) { ok: T, missing, invalid: []const u8 };
+}
+
+fn read(comptime T: type, arg: Arg) Read(T) {
+    comptime if (!readable(T)) @compileError("no argument type gives a " ++ @typeName(T));
+    if (arg == .simple and arg.simple.len == 0) return .missing;
+
+    switch (@typeInfo(T)) {
+        .int => if (arg == .num) return switch (arg.num) {
+            .err => .{ .invalid = "is out of range" },
+            .ok => |number| switch (number) {
+                inline .int32, .int64 => |v| if (std.math.cast(T, v)) |c| .{ .ok = c } else .{ .invalid = "is out of range" },
+                .float32, .float64 => .{ .invalid = "has to be a whole number" },
+            },
+        },
+        .float => if (arg == .num) return switch (arg.num) {
+            .err => .{ .invalid = "is out of range" },
+            .ok => |number| switch (number) {
+                inline .int32, .int64 => |v| .{ .ok = @floatFromInt(v) },
+                inline .float32, .float64 => |v| .{ .ok = @floatCast(v) },
+            },
+        },
+        else => {},
+    }
+    if (T == Player and arg == .players) {
+        return if (arg.players.len == 1) .{ .ok = arg.players[0] } else .{ .invalid = "has to be exactly one player" };
+    }
+    inline for (@typeInfo(Arg).@"union".fields) |case| {
+        if (case.type == T and arg == @field(std.meta.Tag(Arg), case.name)) return .{ .ok = @field(arg, case.name) };
+    }
+    return .missing;
+}
+
+fn readable(comptime T: type) bool {
+    if (T == Player) return true;
+    switch (@typeInfo(T)) {
+        .int, .float => return true,
+        else => {},
+    }
+    for (@typeInfo(Arg).@"union".fields) |case| {
+        if (case.type == T) return true;
+    }
+    return false;
+}
+
 /// Suggests `values` for the word under the cursor.
 pub fn suggestions(request: command.SuggestionRequest, values: []const []const u8) command.CommandSuggestions {
     const out = abi.arena().alloc(command.CommandSuggestion, values.len) catch @panic("OOM");
@@ -143,4 +223,23 @@ pub fn suggestions(request: command.SuggestionRequest, values: []const []const u
         n += 1;
     }
     return .{ .start = request.start, .length = @intCast(request.remaining.len), .values = out[0..n] };
+}
+
+test "read" {
+    try std.testing.expectEqualDeep(Read(i32){ .ok = 5 }, read(i32, .{ .num = .{ .ok = .{ .int64 = 5 } } }));
+    try std.testing.expectEqualDeep(Read(u8){ .invalid = "is out of range" }, read(u8, .{ .num = .{ .ok = .{ .int32 = 300 } } }));
+    try std.testing.expectEqualDeep(Read(i32){ .invalid = "has to be a whole number" }, read(i32, .{ .num = .{ .ok = .{ .float64 = 1.5 } } }));
+    try std.testing.expectEqualDeep(Read(f32){ .ok = 2 }, read(f32, .{ .num = .{ .ok = .{ .int32 = 2 } } }));
+    try std.testing.expectEqualDeep(Read(i32){ .ok = 40 }, read(i32, .{ .time = 40 }));
+    try std.testing.expectEqualDeep(Read(bool){ .ok = true }, read(bool, .{ .bool = true }));
+    try std.testing.expectEqualDeep(Read(bool).missing, read(bool, .{ .simple = "" }));
+    try std.testing.expectEqualDeep(Read(bool).missing, read(bool, .{ .time = 1 }));
+
+    const word = read([]const u8, .{ .msg = "hello there" });
+    try std.testing.expectEqualStrings("hello there", word.ok);
+
+    const one: Player = @enumFromInt(7);
+    try std.testing.expectEqualDeep(Read(Player){ .ok = one }, read(Player, .{ .players = &.{one} }));
+    try std.testing.expectEqualDeep(Read(Player){ .invalid = "has to be exactly one player" }, read(Player, .{ .players = &.{ one, one } }));
+    try std.testing.expectEqualDeep(1, read([]const Player, .{ .players = &.{one} }).ok.len);
 }

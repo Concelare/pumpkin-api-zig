@@ -61,7 +61,7 @@ pub fn build(b: *std.Build) void {
     });
 
     const test_step = b.step("test", "Run unit tests");
-    for ([_][]const u8{ "src/abi.zig", "tools/gen.zig" }) |path| {
+    for ([_][]const u8{ "src/abi.zig", "src/cmd.zig", "tools/gen.zig" }) |path| {
         const tests = b.addTest(.{
             .root_module = b.createModule(.{
                 .root_source_file = b.path(path),
